@@ -10,56 +10,67 @@ var filename1: String = "First"
 var filename2: String = "Second"
 // var dfa: DataFrame = null
 
-def loadfile (file: String): DataFrame = {
+def loadfile(file: String): DataFrame = {
 
-      var check = false
-      var dfa:DataFrame = null
-      // Create first dataframe
-      while (check == false) {
-      println(s"Select the $file file:")
-      val a = repl.in.readLine("Write full path:")
+  var check = false
+  var dfa: DataFrame = null
+  // Create first dataframe
+  while (check == false) {
+    println(s"Select the $file file:")
+    val a = repl.in.readLine("Write full path:")
 
-      println(s"$a")
+    println(s"$a")
 
 
-      try {
-        var dfa:DataFrame = spark.read.option("header","true").option("inferSchema","true").csv(s"$a")
-        println(s"$file file Loaded..")
-        dfa.show(5)
+    try {
+      var dfa: DataFrame = spark.read.option("header", "true").option("inferSchema", "true").csv(s"$a")
+      println(s"$file file Loaded..")
+      dfa.show(5)
       //  dfa.schema()
-        check = true
-          return dfa
-      }
-      catch {
-        case ex: Exception => {
-          println("File not found. Please enter correct FIRST file path")
-          check = false
-        }
-      }
-
-    }
+      check = true
       return dfa
+    }
+    catch {
+      case ex: Exception => {
+        println("File not found. Please enter correct FIRST file path")
+        check = false
+      }
+    }
+
   }
-
-
-def partition(dfname: DataFrame, file: String): Int ={
-  val part = dfname.rdd.partitions.size
-  println(s"DataFrame $file has $part partitions")
-      println("Do you want to repartition?(y/n)")
-  // var a = repl.in.readLine("Select answer: ")
-  // if ( a == "y") {
-  //   println("Select repartition number")
-  //   var b = repl.in.readLine("Number")
-  // }  else if (a == "n"){
-  //   println("Select repartition number")
-  // } else {
-  //   println("Eisai MALAKAS!!!!")
-  // }
-    return part
+  return dfa
 }
 
-  val df1:DataFrame = loadfile(s"$filename1")
-  val df2:DataFrame = loadfile(s"$filename2")
 
-  partition(df1,s"$filename1")
-  partition(df2,s"$filename2")
+def partition(dfname: DataFrame, file: String): Int = {
+  var part: Int = dfname.rdd.partitions.size
+  var check = true
+    while(check == true){
+      println(s"DataFrame $file has $part partitions")
+      println("Do you want to repartition?(y/n)")
+      var a:String = repl.in.readLine("Select answer: ")
+      if (a.equals("y")) {
+        println("Select repartition number")
+        var b = repl.in.readLine("Number: ")
+        var i = (s"$b").toInt
+        var part = i
+        var check = false
+        return part
+      }else if (a.equals("n")) {
+        println(s"You select $part partitions for $file")
+        var check = false
+        return part
+        } else {
+        println("Eisai MALAKAS!!!!")
+        var check = true
+        }
+      }
+          return part
+        }
+
+        val df1: DataFrame = loadfile(s"$filename1")
+        val df2: DataFrame = loadfile(s"$filename2")
+
+        val part1: Int = partition(df1, s"$filename1")
+        println(s"Partition you have selected $part1")
+        //  partition(df2, s"$filename2")
