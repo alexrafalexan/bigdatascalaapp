@@ -45,5 +45,5 @@ neighborhoods.show()
 
 neighborhoods.join(taxi).
 where($"point".within($"polygon")).
-select($"tripId", $"timestamp").
+select($"tid", $"timestamp").
 withColumnRenamed("v", "neighborhood").drop("k").show(5)
