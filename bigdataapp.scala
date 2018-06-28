@@ -1,79 +1,49 @@
+import magellan.{Point, Polygon, PolyLine}
+import magellan.{Point, Polygon}
+import org.apache.spark.sql.magellan.dsl.expressions._
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.DataFrame
 import scala.io.StdIn.readLine
-import java.io.IOException
-import java.io.FileNotFoundException
-import scala.util.control.Breaks._
+import magellan.coord.NAD83
+import org.apache.spark.sql.magellan._
+import org.apache.spark.sql.magellan.dsl.expressions._
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.DataFrame
+import scala.reflect.runtime.universe._
+import org.apache.spark.sql.Row
+import magellan.Polygon
 
-var check: Boolean = false
-var filename1: String = "First"
-var filename2: String = "Second"
-// var dfa: DataFrame = null
+val spark = SparkSession.builder().getOrCreate()
+val sqlContext= new org.apache.spark.sql.SQLContext(sc)
+import sqlContext.implicits._
 
-def loadfile(file: String): DataFrame = {
+println("Select the A file:")
 
-  val spark = SparkSession.builder().getOrCreate()
+val a = repl.in.readLine("Write full path:")
+println(s"$a")
 
-  var check = false
-  var dfa: DataFrame = null
-  // Create first dataframe
-  while (check == false) {
-    println(s"Select the $file file:")
-    val a = repl.in.readLine("Write full path:")
+case class TaxiRecord(tid: String, timestamp: String, point: Point)
 
-    println(s"$a")
+val taxi = sc.textFile(s"$a").map{line =>
+  val parts = line.split(",")
+  val tid = parts(0)
+  val timestamp = parts(1)
+  val point = Point(parts(3).toDouble, parts(2).toDouble)
+  TaxiRecord(tid,timestamp,point)
+}.toDF()
 
+taxi.show()
 
-    try {
-      var dfa: DataFrame = spark.read.option("header", "true").option("inferSchema", "true").csv(s"$a")
-      println(s"$file file Loaded..")
-      dfa.show(5)
-      //  dfa.schema()
-      check = true
-      return dfa
-    }
-    catch {
-      case ex: Exception => {
-        println("File not found. Please enter correct FIRST file path")
-        check = false
-      }
-    }
+val neighborhoods = sqlContext.read.format("magellan").
+load("/usr/lib/spark/scala_files/planning_neighborhoods/").
+select($"polygon", $"metadata").
+cache().toDF()
 
-  }
-  return dfa
-}
+neighborhoods.show()
 
-def repartition(dfname: DataFrame, file: String): DataFrame = {
-  var dftemprepart: DataFrame = null
-  var part: Int = dfname.rdd.partitions.size
-  var check = true
-  while(check == true){
-    println(s"DataFrame $file has $part partitions")
-    println("Do you want to repartition?(y/n)")
-    var a:String = repl.in.readLine("Select answer: ")
-    if (a.equals("y")) {
-      println("Select repartition number")
-      var b = repl.in.readLine("Number: ")
-      var part = (s"$b").toInt
-      var dftemprepart = dfname.repartition(part)
-      println(s"You select $part partitions for $file")
-      var check = false
-      return dftemprepart
-    }else if (a.equals("n")) {
-      println(s"You select $part partitions for $file")
-      var check = false
-      return dfname
-    } else {
-      println("Eisai MALAKAS!!!!")
-      var check = true
-    }
-  }
-  return dftemprepart
-}
-
-val df1: DataFrame = loadfile(s"$filename1")
-val df2: DataFrame = loadfile(s"$filename2")
-
-val df1repart:DataFrame = repartition(df1, s"$filename1")
-val part1 = df1repart.rdd.partitions.size
-println(s"Partition you have selected $part1")
+neighborhoods.join(taxi).
+where($"point".within($"polygon")).
+select($"tid", $"timestamp").
+withColumnRenamed("v", "neighborhood").drop("k").show(5)
