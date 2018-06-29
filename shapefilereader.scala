@@ -30,14 +30,19 @@ val taxi = sc.textFile(s"$a").map{line =>
   val parts = line.split(",")
   val tid = parts(0)
   val timestamp = parts(1)
-  val point = Point(parts(3).toDouble, parts(2).toDouble)
+  val point = Point(parts(2).toDouble, parts(3).toDouble)
   TaxiRecord(tid,timestamp,point)
 }.toDF()
 
 taxi.show()
 
+println("Select the Polygon file:")
+
+val b = repl.in.readLine("Write full path:")
+println(s"$b")
+
 val neighborhoods = sqlContext.read.format("magellan").
-load("/usr/lib/spark/scala_files/planning_neighborhoods/").
+load(s"$b").
 select($"polygon", $"metadata").
 cache().toDF()
 
