@@ -20,14 +20,18 @@ val sqlContext= new org.apache.spark.sql.SQLContext(sc)
 import sqlContext.implicits._
 
 println("Select the A file:")
-
 val a = repl.in.readLine("Write full path:")
 println(s"$a")
+
+println("Select how the file split")
+val splitarg = repl.in.readLine("Write the split argument:")
+println(s"$splitarg")
+
 
 case class TaxiRecord(tid: String, timestamp: String, point: Point)
 
 val taxi = sc.textFile(s"$a").map{line =>
-  val parts = line.split(",")
+  val parts = line.split(s"$splitarg")
   val tid = parts(0)
   val timestamp = parts(1)
   val point = Point(parts(2).toDouble, parts(3).toDouble)
