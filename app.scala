@@ -163,7 +163,8 @@ def repartition(dfname: DataFrame, file: String): DataFrame = {
     }else if (a.equals("n")) {
       println(s"You will keep $part partitions for $file")
       var check = false
-      return dfname
+      dftemprepart = dfname
+      return dftemprepart
     } else {
       println("Select y or n")
       var check = true
@@ -173,7 +174,9 @@ def repartition(dfname: DataFrame, file: String): DataFrame = {
 }
 
 // main
-def main(): Unit = {
+def main(): List[DataFrame] = {
+  var file1partitioned: DataFrame = null
+  var file2partitioned: DataFrame = null
   println("Hello from main of class")
   var check2: Boolean = true
   var first: String = "First"
@@ -185,22 +188,26 @@ def main(): Unit = {
       val file1: DataFrame = loadfile(s"$first")
       val file2: DataFrame = loadfile(s"$second")
       check2 = false
-      val file1partioned: DataFrame = repartition(file1,s"$first")
-      val file2partioned: DataFrame = repartition(file2,s"$second")
+      var file1partitioned: DataFrame = repartition(file1,s"$first")
+      var file2partitioned: DataFrame = repartition(file2,s"$second")
+  return List(file1partitioned,file2partitioned)
     }
     else if (fileTypeSelection == 1) {
       val file1: DataFrame = loadfiletrajectories()
       val file2: DataFrame = loadfolderpolygon()
       check2 = false
-      val file1partioned: DataFrame = repartition(file1,s"$first")
-      val file2partioned: DataFrame = repartition(file2,s"$second")
+      var file1partitioned: DataFrame = repartition(file1,s"$first")
+      var file2partitioned: DataFrame = repartition(file2,s"$second")
+  return List(file1partitioned,file2partitioned)
     }
     else {
       println("Select 0 or 1")
       check2 == true
     }
   }
+  return List(file1partitioned,file2partitioned)
+
 }
 
 //call main
-val aaa = main()
+val listDF = main()
