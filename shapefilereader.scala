@@ -28,7 +28,7 @@ val sqlContext= new org.apache.spark.sql.SQLContext(sc)
 import sqlContext.implicits._
 case class TaxiRecord(tid: String, timestamp: String, point: Point)
 
-def loadfile (): DataFrame = {
+def loadfiletrajectories (): DataFrame = {
 
   val taxiloadfile: DataFrame = null
   var check = true
@@ -97,7 +97,7 @@ return polygonsDF
 }
 
 
-val file1:DataFrame = loadfile()
+val file1:DataFrame = loadfiletrajectories()
 val file2:DataFrame = loadfolderpolygon()
 
 
