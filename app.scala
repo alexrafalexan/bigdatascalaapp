@@ -39,13 +39,13 @@ def loadfile(file: String): DataFrame = {
     println(s"$a")
     try {
       val customSchema = StructType(Array(
-          StructField("tid", IntegerType, true),
-          StructField("date", TimestampType, true),
-          StructField("long", DoubleType, true),
-          StructField("lat", DoubleType, true)))
+        StructField("tid", IntegerType, true),
+        StructField("date", TimestampType, true),
+        StructField("long", DoubleType, true),
+        StructField("lat", DoubleType, true)))
       var dfa: DataFrame = spark.read.option("header", "true").schema(customSchema).option("inferSchema", "true").csv(s"$a")
       println(s"$file file Loaded..")
-          dfa.show(5)
+      dfa.show(5)
       //  dfa.schema()
       check = true
       return dfa
@@ -182,20 +182,27 @@ def repartition(dfname: DataFrame, file: String): DataFrame = {
 def main(): List[DataFrame] = {
   var file1partitioned: DataFrame = null
   var file2partitioned: DataFrame = null
-  println("Hello from main of class")
   var check2: Boolean = true
   var first: String = "First"
   var second: String = "Second"
+  var fileTypeSelection: Int = -1
   while (check2 == true) {
     println(s"Select the type of files you want to join")
-    var fileTypeSelection: Int = (repl.in.readLine("(0-->trajectories with trajectories, 1-->trajectories with polygon file):")).toInt
+    try{
+      fileTypeSelection = (repl.in.readLine("(0-->trajectories with trajectories, 1-->trajectories with polygon file):")).toInt
+    }
+    catch{
+      case e: NumberFormatException => {
+        println("Insert integer 0 or 1")
+      }
+    }
     if (fileTypeSelection == 0) {
       val file1: DataFrame = loadfile(s"$first")
       val file2: DataFrame = loadfile(s"$second")
       check2 = false
       var file1partitioned: DataFrame = repartition(file1,s"$first")
       var file2partitioned: DataFrame = repartition(file2,s"$second")
-  return List(file1partitioned,file2partitioned)
+      return List(file1partitioned,file2partitioned)
     }
     else if (fileTypeSelection == 1) {
       val file1: DataFrame = loadfiletrajectories()
@@ -203,7 +210,7 @@ def main(): List[DataFrame] = {
       check2 = false
       var file1partitioned: DataFrame = repartition(file1,s"$first")
       var file2partitioned: DataFrame = repartition(file2,s"$second")
-  return List(file1partitioned,file2partitioned)
+      return List(file1partitioned,file2partitioned)
     }
     else {
       println("Select 0 or 1")
