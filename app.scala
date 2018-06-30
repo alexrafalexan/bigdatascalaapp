@@ -23,9 +23,11 @@ import java.lang.IllegalArgumentException
 import org.apache.spark.sql.AnalysisException
 import java.lang.NumberFormatException
 import scala.util.control.Breaks._
+import org.apache.spark.sql.functions.{from_unixtime, unix_timestamp}
 
 
-val spark = SparkSession.builder().getOrCreate()
+
+val spark = SparkSession.builder().enableHiveSupport().getOrCreate()
 
 // equation for csv to df
 def loadfile(file: String): DataFrame = {
@@ -178,16 +180,85 @@ def repartition(dfname: DataFrame, file: String): DataFrame = {
   return dftemprepart
 }
 
+//time range join
+
+import sqlContext.implicits._
+case class Time(time_start: String, time_end: String)
+def timerangejoin() : DataFrame = {
+  val tstart = repl.in.readLine("Write Start_Timestamp (yyyy-MM-dd HH:mm:ss) :")
+  val tend = repl.in.readLine("Write End_Timestamp (yyyy-MM-dd HH:mm:ss) :")
+  val timeDS = Seq(Time(s"$tstart",s"$tend")).toDF
+  val timetimestamp = timeDS.select (unix_timestamp ($"time_start","yyyy-MM-dd HH:mm:ss")
+    .cast(TimestampType).as("time_start"),
+    unix_timestamp ($"time_end","yyyy-MM-dd HH:mm:ss")
+      .cast(TimestampType).as("time_end"))
+  timetimestamp.show()
+  return timetimestamp
+}
+
+//join trajectories with polygons
+def trajecjoinpolygon(jfile1: DataFrame, jfile2: DataFrame): DataFrame ={
+  var jDF = jfile1.join(jfile2).
+    where($"point".within($"polygon")).
+    select($"tid", $"timestamp",$"metadata").
+    withColumnRenamed("v", "neighborhood").drop("k")
+  var checkjoinoption: Boolean = true
+  while (checkjoinoption == true) {
+    println("Select 0, 1, 2 or 3")
+    var jointypeselection: Int = -1
+    try{
+      jointypeselection = (repl.in.readLine("(0-->sort by id join, 1--> sort by time join, 2 --> sort by id and time join, 3 --> time-range join):")).toInt
+    }
+    catch{
+      case e: NumberFormatException => {
+        println("Insert integer 0, 1, 2 or 3")
+      }
+    }
+    if (jointypeselection == 0) {
+      import sqlContext.implicits._
+      jDF = jDF.orderBy($"tid".asc)
+      return jDF
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 1) {
+      import sqlContext.implicits._
+      jDF = jDF.orderBy($"timestamp".asc)
+      return jDF
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 2) {
+      import sqlContext.implicits._
+      jDF = jDF.orderBy($"tid".asc,$"timestamp".asc)
+      return jDF
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 3) {
+      import sqlContext.implicits._
+      val timetable = timerangejoin()
+      timetable.show()
+      checkjoinoption = false
+      jDF = timetable.join(jDF, timetable.col("time_start") <= jDF.col("timestamp") && timetable.col("time_end") >= jDF.col("timestamp"),"inner").select(jDF.col("tid"), jDF.col("timestamp"),jDF.col("metadata"))
+      jDF.show()
+      return jDF
+    }
+    else {
+      println("Select 0, 1, 2, or 3")
+    }
+  }
+  return jDF
+}
+
 // main
 def main(): List[DataFrame] = {
   var file1partitioned: DataFrame = null
   var file2partitioned: DataFrame = null
+  var joinedDF: DataFrame = null
   var check2: Boolean = true
   var first: String = "First"
   var second: String = "Second"
   var fileTypeSelection: Int = -1
   while (check2 == true) {
-    println(s"Select the type of files you want to join")
+    println("Select the type of files you want to join")
     try{
       fileTypeSelection = (repl.in.readLine("(0-->trajectories with trajectories, 1-->trajectories with polygon file):")).toInt
     }
@@ -202,7 +273,8 @@ def main(): List[DataFrame] = {
       check2 = false
       var file1partitioned: DataFrame = repartition(file1,s"$first")
       var file2partitioned: DataFrame = repartition(file2,s"$second")
-      return List(file1partitioned,file2partitioned)
+      var joinedDF: DataFrame = trajecjoinpolygon(file1partitioned,file2partitioned)
+      return List(file1partitioned,file2partitioned,joinedDF)
     }
     else if (fileTypeSelection == 1) {
       val file1: DataFrame = loadfiletrajectories()
@@ -210,16 +282,18 @@ def main(): List[DataFrame] = {
       check2 = false
       var file1partitioned: DataFrame = repartition(file1,s"$first")
       var file2partitioned: DataFrame = repartition(file2,s"$second")
-      return List(file1partitioned,file2partitioned)
+      var joinedDF: DataFrame = trajecjoinpolygon(file1partitioned,file2partitioned)
+
+      return List(file1partitioned,file2partitioned,joinedDF)
     }
     else {
       println("Select 0 or 1")
       check2 == true
     }
   }
-  return List(file1partitioned,file2partitioned)
-
+  return List(file1partitioned,file2partitioned,joinedDF)
 }
 
 //call main
 val listDF = main()
+listDF(2).show()
