@@ -38,9 +38,14 @@ def loadfile(file: String): DataFrame = {
     val a = repl.in.readLine("Write full path:")
     println(s"$a")
     try {
-      var dfa: DataFrame = spark.read.option("header", "false").option("inferSchema", "true").csv(s"$a")
+      val customSchema = StructType(Array(
+          StructField("tid", IntegerType, true),
+          StructField("date", TimestampType, true),
+          StructField("long", DoubleType, true),
+          StructField("lat", DoubleType, true)))
+      var dfa: DataFrame = spark.read.option("header", "true").schema(customSchema).option("inferSchema", "true").csv(s"$a")
       println(s"$file file Loaded..")
-      dfa.show(5)
+          dfa.show(5)
       //  dfa.schema()
       check = true
       return dfa
