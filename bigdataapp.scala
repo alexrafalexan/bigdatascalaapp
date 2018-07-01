@@ -257,17 +257,17 @@ def joinpol(df: List[DataFrame]): DataFrame={
     }
     if (jointypeselection == 1) {
       import sqlContext.implicits._
-      joinedDF = joinedDF.orderBy($"tid".asc)
+      joinedDF = joinedDF.orderBy($"ID".asc)
       checkjoinoption = false
     }
     else if (jointypeselection == 2) {
       import sqlContext.implicits._
-      joinedDF = joinedDF.orderBy($"timestamp".asc)
+      joinedDF = joinedDF.orderBy($"TIMESTAMP".asc)
       checkjoinoption = false
     }
     else if (jointypeselection == 3) {
       import sqlContext.implicits._
-      joinedDF = joinedDF.orderBy($"tid".asc,$"timestamp".asc)
+      joinedDF = joinedDF.orderBy($"ID".asc,$"TIMESTAMP".asc)
       checkjoinoption = false
     }
     else if (jointypeselection == 4) {
