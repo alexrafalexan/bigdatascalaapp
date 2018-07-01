@@ -24,6 +24,7 @@ import org.apache.spark.sql.AnalysisException
 import java.lang.NumberFormatException
 import scala.util.control.Breaks._
 import org.apache.spark.sql.functions.{from_unixtime, unix_timestamp}
+import org.apache.spark.sql.functions.broadcast
 
 
 
@@ -181,7 +182,6 @@ def repartition(dfname: DataFrame, file: String): DataFrame = {
 }
 
 //time range join
-
 import sqlContext.implicits._
 case class Time(time_start: String, time_end: String)
 def timerangejoin() : DataFrame = {
@@ -237,12 +237,48 @@ def trajecjoinpolygon(jfile1: DataFrame, jfile2: DataFrame): DataFrame ={
       val timetable = timerangejoin()
       timetable.show()
       checkjoinoption = false
-      jDF = timetable.join(jDF, timetable.col("time_start") <= jDF.col("timestamp") && timetable.col("time_end") >= jDF.col("timestamp"),"inner").select(jDF.col("tid"), jDF.col("timestamp"),jDF.col("metadata"))
+      jDF = timetable.join(jDF, timetable.col("time_start") <= jDF.col("timestamp")
+        && timetable.col("time_end") >= jDF.col("timestamp"),"inner").
+        select(jDF.col("tid"), jDF.col("timestamp"),jDF.col("metadata"))
       jDF.show()
       return jDF
     }
     else {
       println("Select 0, 1, 2, or 3")
+    }
+  }
+  return jDF
+}
+
+
+def twotrajecjtoryjoin(jfile1: DataFrame, jfile2: DataFrame): DataFrame ={
+  var jDF: DataFrame = null
+  var checkjoinoption: Boolean = true
+  while (checkjoinoption == true) {
+    println("Select 0, 1 or 2")
+    var jointypeselection: Int = -1
+    try{
+      jointypeselection = (repl.in.readLine("(0-->simple join, 1--> broadcast join):")).toInt
+    }
+    catch{
+      case e: NumberFormatException => {
+        println("Insert integer 0, 1, 2 or 3")
+      }
+    }
+    if (jointypeselection == 0) {
+      jDF = jfile1.join(jfile2, jfile1.col("tid") === jfile2.col("tid") && jfile1.col("date") === jfile2.col("date")).
+        select(jfile1.col("tid"),jfile1.col("date"),jfile2.col("tid"),jfile2.col("long"),jfile2("lat"))
+      return jDF
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 1) {
+      val jDF: DataFrame = jfile1.join(broadcast(jfile2),jfile1.col("tid") === jfile2.col("tid") && jfile1.col("date") === jfile2.col("date")).
+        select(jfile1.col("tid"),jfile1.col("date"),jfile2.col("tid"),jfile2.col("long"),jfile2.col("lat"))
+      checkjoinoption = false
+      return jDF
+    }
+    else {
+      println("Select 0, 1, or 2")
     }
   }
   return jDF
@@ -273,7 +309,7 @@ def main(): List[DataFrame] = {
       check2 = false
       var file1partitioned: DataFrame = repartition(file1,s"$first")
       var file2partitioned: DataFrame = repartition(file2,s"$second")
-      var joinedDF: DataFrame = trajecjoinpolygon(file1partitioned,file2partitioned)
+      var joinedDF: DataFrame = twotrajecjtoryjoin(file1partitioned,file2partitioned)
       return List(file1partitioned,file2partitioned,joinedDF)
     }
     else if (fileTypeSelection == 1) {
