@@ -146,7 +146,7 @@ def importpolygondata (file: String): DataFrame ={
         load(s"$typed").
         select($"polygon", $"metadata").
         cache().toDF()
-      polDF.show()
+      polDF.show(10,false)
       checkoption = false
     } catch {
       case ex: IllegalArgumentException => {
@@ -205,8 +205,6 @@ def defpartition (df: List [DataFrame], opt: List[Any]): List [DataFrame] = {
       }
     }
   }
-  println(dfname0.rdd.partitions.size)
-  println(dfname1.rdd.partitions.size)
   return List(dfname0,dfname1)
 }
 
@@ -239,6 +237,66 @@ def joinroutes(df: List[DataFrame]): DataFrame ={
     }
   }
   return finalDF
+}
+
+def joinpol(df: List[DataFrame]): DataFrame={
+  var joinedDF = df(0).join(df(1)).
+    where($"point".within($"polygon")).
+    select($"ID", $"TIMESTAMP",$"metadata").
+    withColumnRenamed("v", "neighborhood").drop("k")
+  var checkjoinoption: Boolean = true
+  while (checkjoinoption == true) {
+    var jointypeselection: Int = -1
+    try{
+      jointypeselection = (repl.in.readLine("(Select 1 for join and sort by ID, Select 2 for join and sort by TIMESTAMP, Select 3 for join and sort by ID,TIMESTAMP, Select 4 time-Range join):")).toInt
+    }
+    catch{
+      case e: NumberFormatException => {
+        println("Select 1 for join and sort by ID, Select 2 for join and sort by TIMESTAMP, Select 3 for join and sort by ID,TIMESTAMP, Select 4 time-Range join):")
+      }
+    }
+    if (jointypeselection == 1) {
+      import sqlContext.implicits._
+      joinedDF = joinedDF.orderBy($"tid".asc)
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 2) {
+      import sqlContext.implicits._
+      joinedDF = joinedDF.orderBy($"timestamp".asc)
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 3) {
+      import sqlContext.implicits._
+      joinedDF = joinedDF.orderBy($"tid".asc,$"timestamp".asc)
+      checkjoinoption = false
+    }
+    else if (jointypeselection == 4) {
+      import sqlContext.implicits._
+      val timetable = timerangejoin()
+      timetable.show()
+      checkjoinoption = false
+      joinedDF = timetable.join(joinedDF, timetable.col("time_start") <= joinedDF.col("TIMESTAMP")
+        && timetable.col("time_end") >= joinedDF.col("TIMESTAMP"),"inner").
+        select(joinedDF.col("ID"), joinedDF.col("timestamp"),joinedDF.col("metadata"))
+      joinedDF.show()
+    }
+    else {
+      println("Select 1 for join and sort by ID, Select 2 for join and sort by TIMESTAMP, Select 3 for join and sort by ID,TIMESTAMP, Select 4 time-Range join):")
+    }
+  }
+  return joinedDF
+}
+import sqlContext.implicits._
+case class Time(time_start: String, time_end: String)
+def timerangejoin() : DataFrame = {
+  val tstart = repl.in.readLine("Start_Time (yyyy/MM/dd HH:mm:ss) :")
+  val tend = repl.in.readLine("End_Time (yyyy/MM/dd HH:mm:ss) :")
+  val timeDS = Seq(Time(s"$tstart",s"$tend")).toDF
+  val timetimestamp = timeDS.select (unix_timestamp ($"time_start","yyyy/MM/dd HH:mm:ss")
+    .cast(TimestampType).as("time_start"),
+    unix_timestamp ($"time_end","yyyy/MM/dd HH:mm:ss")
+      .cast(TimestampType).as("time_end"))
+  return timetimestamp
 }
 
 def first(): List [Any] ={
@@ -297,7 +355,7 @@ def main(): DataFrame = {
     join = joinroutes(partitions)
   }
   else{
-    println (2)
+    join = joinpol(partitions)
   }
   return join
 }
