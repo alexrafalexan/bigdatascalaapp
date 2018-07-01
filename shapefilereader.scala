@@ -21,6 +21,7 @@ import java.lang.ArrayIndexOutOfBoundsException
 import java.lang.IllegalArgumentException
 import java.util.regex.PatternSyntaxException
 import org.apache.spark.SparkException
+import org.apache.spark.sql.functions.broadcast
 
 val spark = SparkSession.builder().getOrCreate()
 
@@ -98,10 +99,23 @@ return polygonsDF
 
 
 val file1:DataFrame = loadfiletrajectories()
-val file2:DataFrame = loadfolderpolygon()
+// val file2:DataFrame = loadfolderpolygon()
+val file2:DataFrame = loadfiletrajectories()
 
 
-file1.join(file2).
-  where($"point".within($"polygon")).
-  select($"tid", $"timestamp").
-  withColumnRenamed("v", "neighborhood").drop("k").show(5)
+// val jj: DataFrame = file2.join(file1, file2.col("tid") === file1.col("tid") && file2.col("timestamp") === file1.col("timestamp")).
+// select(file1.col("tid"),file1.col("point"),file2.col("tid"),file2.col("point"))
+//
+// jj.show(5000)
+
+val jj: DataFrame = file2.join(broadcast(file1),file2.col("tid") === file1.col("tid") && file2.col("timestamp") === file1.col("timestamp")).
+select(file1.col("tid"),file1.col("point"),file2.col("tid"),file2.col("point"))
+
+jj.show(5000)
+
+// file2.join(broadcast(file1),).
+// select($"tid", $"timestamp",$"point").show()
+// file1.join(broadcast(file2),$"point").
+//   where($"point".within($"polygon")).
+//   select($"tid", $"timestamp").
+//   withColumnRenamed("v", "neighborhood").drop("k").show(5)
