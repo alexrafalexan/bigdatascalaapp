@@ -1,0 +1,7 @@
+start-all.sh
+
+cd /usr/lib/spark/sbin
+
+./start-master.sh
+
+./start-slave.sh spark://10.0.0.3:7077
